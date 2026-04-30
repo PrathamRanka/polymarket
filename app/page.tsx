@@ -6,6 +6,27 @@ import { createClient } from "@/lib/supabase/server";
 import { calculateProbability } from "@/lib/utils";
 import type { Market, MarketStatus } from "@/types";
 
+interface CategoryRow {
+  id: string;
+  name: string;
+  slug: string;
+  icon: string;
+}
+
+interface HomeMarketRow {
+  id: string;
+  title: string;
+  description: string;
+  category_id: string;
+  creator_id: string;
+  yes_volume: number | string | null;
+  no_volume: number | string | null;
+  expires_at: string;
+  status: MarketStatus;
+  created_at: string;
+  categories: CategoryRow[] | CategoryRow | null;
+}
+
 async function getHomepageData(): Promise<{ markets: Market[]; stats: string }> {
   const supabase = await createClient();
   const [{ data: categories }, { data: markets }, { count }] = await Promise.all([
@@ -19,7 +40,9 @@ async function getHomepageData(): Promise<{ markets: Market[]; stats: string }> 
     supabase.from("markets").select("id", { count: "exact", head: true }),
   ]);
 
-  const marketRows: Market[] = (markets ?? []).map((row) => {
+  const categoryRows = categories as CategoryRow[] | null;
+
+  const marketRows: Market[] = (markets ?? []).map((row: HomeMarketRow) => {
     const categoryRow = Array.isArray(row.categories) ? row.categories[0] : row.categories;
     const yesVolume = Number(row.yes_volume ?? 0);
     const noVolume = Number(row.no_volume ?? 0);
@@ -28,10 +51,10 @@ async function getHomepageData(): Promise<{ markets: Market[]; stats: string }> 
       title: row.title,
       description: row.description,
       category: {
-        id: categoryRow?.id ?? categories?.[0]?.id ?? "",
-        name: categoryRow?.name ?? categories?.[0]?.name ?? "General",
-        slug: categoryRow?.slug ?? categories?.[0]?.slug ?? "general",
-        icon: categoryRow?.icon ?? categories?.[0]?.icon ?? "❓",
+        id: categoryRow?.id ?? categoryRows?.[0]?.id ?? "",
+        name: categoryRow?.name ?? categoryRows?.[0]?.name ?? "General",
+        slug: categoryRow?.slug ?? categoryRows?.[0]?.slug ?? "general",
+        icon: categoryRow?.icon ?? categoryRows?.[0]?.icon ?? "❓",
       },
       creator_id: row.creator_id,
       yes_volume: yesVolume,

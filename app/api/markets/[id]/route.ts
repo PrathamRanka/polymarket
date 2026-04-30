@@ -8,6 +8,27 @@ interface Params {
   params: Promise<{ id: string }>;
 }
 
+interface CategoryRow {
+  id: string;
+  name: string;
+  slug: string;
+  icon: string;
+}
+
+interface MarketRow {
+  id: string;
+  title: string;
+  description: string;
+  category_id: string;
+  creator_id: string;
+  yes_volume: number | string | null;
+  no_volume: number | string | null;
+  expires_at: string;
+  status: MarketStatus;
+  created_at: string;
+  categories: CategoryRow[] | CategoryRow | null;
+}
+
 export async function GET(
   _request: Request,
   { params }: Params,
@@ -22,7 +43,9 @@ export async function GET(
       .eq("id", id)
       .single();
 
-    if (error || !data) {
+    const marketRow = data as MarketRow | null;
+
+    if (error || !marketRow) {
       return NextResponse.json(
         {
           error: "Market not found",
@@ -33,27 +56,27 @@ export async function GET(
       );
     }
 
-    const yesVolume = Number(data.yes_volume ?? 0);
-    const noVolume = Number(data.no_volume ?? 0);
-    const categoryRow = Array.isArray(data.categories) ? data.categories[0] : data.categories;
+    const yesVolume = Number(marketRow.yes_volume ?? 0);
+    const noVolume = Number(marketRow.no_volume ?? 0);
+    const categoryRow = Array.isArray(marketRow.categories) ? marketRow.categories[0] : marketRow.categories;
 
     const market: Market = {
-      id: data.id,
-      title: data.title,
-      description: data.description,
+      id: marketRow.id,
+      title: marketRow.title,
+      description: marketRow.description,
       category: {
         id: categoryRow?.id ?? "",
         name: categoryRow?.name ?? "Unknown",
         slug: categoryRow?.slug ?? "unknown",
         icon: categoryRow?.icon ?? "❓",
       },
-      creator_id: data.creator_id,
+      creator_id: marketRow.creator_id,
       yes_volume: yesVolume,
       no_volume: noVolume,
       yes_probability: calculateProbability(yesVolume, noVolume),
-      expires_at: data.expires_at,
-      status: data.status as MarketStatus,
-      created_at: data.created_at,
+      expires_at: marketRow.expires_at,
+      status: marketRow.status,
+      created_at: marketRow.created_at,
     };
 
     return NextResponse.json({ data: market });

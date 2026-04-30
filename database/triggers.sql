@@ -1,0 +1,7 @@
+-- PredictMarket triggers and trigger bindings.
+-- The executable trigger definition lives in procedures.sql.
+--
+-- before_insert_bets_deduct_wallet
+--   BEFORE INSERT ON bets
+--   FOR EACH ROW
+--   EXECUTE FUNCTION trg_deduct_wallet_on_bet();

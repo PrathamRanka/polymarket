@@ -5,6 +5,44 @@ import { createClient } from "@/lib/supabase/server";
 import { calculateProbability } from "@/lib/utils";
 import type { ApiError, ApiSuccess, CreateMarketFormValues, Market, MarketStatus } from "@/types";
 
+interface CategoryRow {
+  id: string;
+  name: string;
+  slug: string;
+  icon: string;
+}
+
+interface MarketRow {
+  id: string;
+  title: string;
+  description: string;
+  category_id: string;
+  creator_id: string;
+  yes_volume: number | string | null;
+  no_volume: number | string | null;
+  expires_at: string;
+  status: MarketStatus;
+  created_at: string;
+  categories: CategoryRow[] | CategoryRow | null;
+}
+
+interface MarketInsertRow {
+  title: string;
+  description: string;
+  category_id: string;
+  creator_id: string;
+  expires_at: string;
+}
+
+interface MarketInsertedRow extends MarketInsertRow {
+  id: string;
+  yes_volume: number | string | null;
+  no_volume: number | string | null;
+  status: MarketStatus;
+  created_at: string;
+  categories: CategoryRow[] | CategoryRow | null;
+}
+
 export const revalidate = 30;
 
 const createMarketSchema = z
@@ -61,7 +99,7 @@ export async function GET(request: Request): Promise<NextResponse<ApiSuccess<Mar
       });
     }
 
-    const markets: Market[] = (data ?? []).map((row) => {
+    const markets: Market[] = (data ?? []).map((row: MarketRow) => {
       const yesVolume = Number(row.yes_volume ?? 0);
       const noVolume = Number(row.no_volume ?? 0);
       const categoryRow = Array.isArray(row.categories) ? row.categories[0] : row.categories;
@@ -129,8 +167,17 @@ export async function POST(request: Request): Promise<NextResponse<ApiSuccess<Ma
       });
     }
 
-    const { data, error } = await supabase
-      .from("markets")
+    const marketsTable = supabase.from("markets") as unknown as {
+      insert: (values: MarketInsertRow) => {
+        select: (
+          columns: string,
+        ) => {
+          single: () => Promise<{ data: MarketInsertedRow | null; error: { message: string } | null }>;
+        };
+      };
+    };
+
+    const { data, error } = await marketsTable
       .insert({
         title: parsed.data.title,
         description: parsed.data.description,

@@ -59,7 +59,7 @@ export function OddsChart({ marketId, currentProb }: OddsChartProps) {
               borderColor: "#3f3f46",
               color: "#fafafa",
             }}
-            formatter={(value: number) => `${value}% YES`}
+            formatter={(value) => `${String(value)}% YES`}
           />
           <ReferenceLine y={50} stroke="#71717a" strokeDasharray="4 4" />
           <Line

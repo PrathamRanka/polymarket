@@ -9,6 +9,12 @@ const bodySchema = z.object({
   winning_side: z.enum(["YES", "NO"]),
 });
 
+interface AdminActorRow {
+  id: string;
+  rank: string;
+  email: string;
+}
+
 export async function POST(
   request: Request,
 ): Promise<NextResponse<ApiSuccess<{ resolved: true; market_id: string }> | ApiError>> {
@@ -31,14 +37,16 @@ export async function POST(
       .eq("id", user.id)
       .single();
 
-    if (actorError || !actor) {
+    const actorRow = actor as AdminActorRow | null;
+
+    if (actorError || !actorRow) {
       return NextResponse.json(
         { error: "User not found", code: "USER_NOT_FOUND", status: 404 },
         { status: 404 },
       );
     }
 
-    const isAdmin = actor.rank === "Legend" || actor.email === "admin@predictmarket.com";
+    const isAdmin = actorRow.rank === "Legend" || actorRow.email === "admin@predictmarket.com";
     if (!isAdmin) {
       return NextResponse.json(
         { error: "Forbidden", code: "FORBIDDEN", status: 403 },
@@ -59,10 +67,21 @@ export async function POST(
       );
     }
 
-    const { error } = await supabase.rpc("resolve_market", {
+    const rpcClient = supabase as typeof supabase & {
+      rpc: (
+        procedure: string,
+        args: {
+          p_market_id: string;
+          p_winning_side: "YES" | "NO";
+          p_admin_id: string;
+        },
+      ) => Promise<{ error: { message: string } | null }>;
+    };
+
+    const { error } = await rpcClient.rpc("resolve_market", {
       p_market_id: parsed.data.market_id,
       p_winning_side: parsed.data.winning_side,
-      p_admin_id: actor.id,
+      p_admin_id: actorRow.id,
     });
 
     if (error) {

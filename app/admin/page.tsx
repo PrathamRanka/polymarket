@@ -3,6 +3,20 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatCoins } from "@/lib/utils";
 
+interface AdminMarketRow {
+  id: string;
+  title: string;
+  status: string;
+  yes_volume: number | string;
+  no_volume: number | string;
+  expires_at: string;
+}
+
+interface AdminProfileRow {
+  rank: string;
+  email: string;
+}
+
 async function getAdminData() {
   const supabase = await createClient();
   const {
@@ -19,7 +33,9 @@ async function getAdminData() {
     .eq("id", user.id)
     .single();
 
-  if (!profile || (profile.rank !== "Legend" && profile.email !== "admin@predictmarket.com")) {
+  const profileRow = profile as AdminProfileRow | null;
+
+  if (!profileRow || (profileRow.rank !== "Legend" && profileRow.email !== "admin@predictmarket.com")) {
     return "forbidden" as const;
   }
 
@@ -42,7 +58,7 @@ async function getAdminData() {
     markets,
     users,
     betsToday,
-    marketRows: marketRows ?? [],
+    marketRows: (marketRows ?? []) as AdminMarketRow[],
   };
 }
 

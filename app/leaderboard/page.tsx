@@ -2,24 +2,32 @@ import LeaderboardTable from "@/components/leaderboard/LeaderboardTable";
 import { createClient } from "@/lib/supabase/server";
 import type { LeaderboardEntry } from "@/types";
 
+interface LeaderboardReportRow {
+  rank: number;
+  username: string;
+  score: number;
+  wins: number;
+  losses: number;
+  win_rate: number;
+  streak: number;
+}
+
 async function fetchEntries(): Promise<LeaderboardEntry[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("get_leaderboard_report", { p_limit: 100 });
+  const rpcClient = supabase as typeof supabase & {
+    rpc: (
+      procedure: string,
+      args: { p_limit: number },
+    ) => Promise<{ data: LeaderboardReportRow[] | null; error: { message: string } | null }>;
+  };
+
+  const { data, error } = await rpcClient.rpc("get_leaderboard_report", { p_limit: 100 });
 
   if (error || !data) {
     return [];
   }
 
-  return data.map(
-    (row: {
-      rank: number;
-      username: string;
-      score: number;
-      wins: number;
-      losses: number;
-      win_rate: number;
-      streak: number;
-    }) => ({
+  return data.map((row: LeaderboardReportRow) => ({
       rank: row.rank,
       user: {
         id: `user-${row.rank}`,
@@ -32,8 +40,7 @@ async function fetchEntries(): Promise<LeaderboardEntry[]> {
       losses: row.losses,
       win_rate: row.win_rate,
       total_wagered: 0,
-    }),
-  );
+    }));
 }
 
 export default async function LeaderboardPage() {

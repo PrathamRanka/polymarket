@@ -12,7 +12,7 @@ export function useBet(marketId: string) {
   const queryClient = useQueryClient();
   const deduct = useWalletStore((state) => state.deduct);
 
-  const mutation = useMutation<Bet, Error, BetFormValues, { previousMarket?: Market }>({
+  const mutation = useMutation<Bet, Error, BetFormValues, { previousMarket: Market | null }>({
     mutationFn: (payload) => placeBet(marketId, payload),
     onMutate: async (payload) => {
       await queryClient.cancelQueries({ queryKey: ["market", marketId] });
@@ -37,7 +37,7 @@ export function useBet(marketId: string) {
         });
       }
 
-      return { previousMarket };
+      return { previousMarket: previousMarket ?? null };
     },
     onError: (error, _variables, context) => {
       if (context?.previousMarket) {

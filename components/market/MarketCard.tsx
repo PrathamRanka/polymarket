@@ -1,9 +1,9 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { Coins, Timer } from "lucide-react";
 
-import { formatCoins, formatProbability, formatTimeLeft } from "@/lib/utils";
+import ProbabilityBar from "@/components/market/ProbabilityBar";
+import { formatCoins, formatTimeLeft } from "@/lib/utils";
 import type { Market } from "@/types";
 
 interface MarketCardProps {
@@ -12,16 +12,10 @@ interface MarketCardProps {
 }
 
 export function MarketCard({ market, onClick }: MarketCardProps) {
-  const yesPercent = Math.round(market.yes_probability * 100);
-  const noPercent = 100 - yesPercent;
   const volume = market.yes_volume + market.no_volume;
 
   return (
-    <motion.article
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ scale: 1.02 }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
+    <article
       className="group rounded-xl border border-zinc-800 bg-zinc-900/80 p-4 backdrop-blur"
       style={{ boxShadow: "0 0 0 rgba(59,130,246,0)" }}
       onClick={onClick}
@@ -35,20 +29,7 @@ export function MarketCard({ market, onClick }: MarketCardProps) {
 
       <h3 className="line-clamp-2 text-base font-semibold text-white">{market.title}</h3>
 
-      <div className="mt-4">
-        <div className="mb-2 flex items-center justify-between text-xs">
-          <span className="text-emerald-400">YES {formatProbability(market.yes_probability)}</span>
-          <span className="text-rose-400">NO {noPercent}%</span>
-        </div>
-        <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
-          <motion.div
-            layout
-            animate={{ width: `${yesPercent}%` }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-            className="h-full bg-emerald-500"
-          />
-        </div>
-      </div>
+      <ProbabilityBar yesProbability={market.yes_probability} className="mt-4" />
 
       <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-zinc-400">
         <div className="inline-flex items-center gap-1">
@@ -63,7 +44,7 @@ export function MarketCard({ market, onClick }: MarketCardProps) {
           <span>{formatTimeLeft(market.expires_at)}</span>
         </div>
       </div>
-    </motion.article>
+    </article>
   );
 }
 

@@ -9,6 +9,39 @@ interface Params {
   params: Promise<{ id: string }>;
 }
 
+interface BetMarketRow {
+  id: string;
+  status: string;
+  expires_at: string;
+  yes_volume: number | string | null;
+  no_volume: number | string | null;
+}
+
+interface BetUserRow {
+  wallet_balance: number | string;
+}
+
+interface BetInsertRow {
+  user_id: string;
+  market_id: string;
+  side: BetSide;
+  amount: number;
+  shares: number;
+  potential_payout: number;
+}
+
+interface BetInsertedRow {
+  id: string;
+  user_id: string;
+  market_id: string;
+  side: BetSide;
+  amount: number | string;
+  shares: number | string;
+  potential_payout: number | string;
+  status: Bet["status"];
+  created_at: string;
+}
+
 const betSchema = z.object({
   side: z.enum(["YES", "NO"]),
   amount: z.number().min(1).max(100000),
@@ -26,7 +59,6 @@ function checkRateLimit(userId: string): boolean {
     return false;
   }
 
-  // TODO: replace this in-memory limiter with Redis in production.
   recent.push(now);
   userRateLimit.set(userId, recent);
   return true;
@@ -78,21 +110,23 @@ export async function POST(
       .eq("id", marketId)
       .single();
 
-    if (marketError || !market) {
+    const marketRow = market as BetMarketRow | null;
+
+    if (marketError || !marketRow) {
       return NextResponse.json(
         { error: "Market not found", code: "MARKET_NOT_FOUND", status: 404 },
         { status: 404 },
       );
     }
 
-    if (market.status !== "OPEN") {
+    if (marketRow.status !== "OPEN") {
       return NextResponse.json(
         { error: "Market is not open", code: "MARKET_CLOSED", status: 400 },
         { status: 400 },
       );
     }
 
-    if (new Date(market.expires_at).getTime() <= Date.now()) {
+    if (new Date(marketRow.expires_at).getTime() <= Date.now()) {
       return NextResponse.json(
         { error: "Market expired", code: "MARKET_EXPIRED", status: 400 },
         { status: 400 },
@@ -105,14 +139,16 @@ export async function POST(
       .eq("id", user.id)
       .single();
 
-    if (profileError || !profile) {
+    const profileRow = profile as BetUserRow | null;
+
+    if (profileError || !profileRow) {
       return NextResponse.json(
         { error: "User not found", code: "USER_NOT_FOUND", status: 404 },
         { status: 404 },
       );
     }
 
-    if (Number(profile.wallet_balance) < parsed.data.amount) {
+    if (Number(profileRow.wallet_balance) < parsed.data.amount) {
       return NextResponse.json(
         {
           error: "Insufficient funds",
@@ -123,16 +159,25 @@ export async function POST(
       );
     }
 
-    const yesVolume = Number(market.yes_volume ?? 0);
-    const noVolume = Number(market.no_volume ?? 0);
+    const yesVolume = Number(marketRow.yes_volume ?? 0);
+    const noVolume = Number(marketRow.no_volume ?? 0);
     const probability = calculateProbability(yesVolume, noVolume);
 
     const effectiveProbability = parsed.data.side === "YES" ? probability : 1 - probability;
     const shares = parsed.data.amount / Math.max(effectiveProbability, 0.01);
     const payout = calculatePotentialPayout(parsed.data.amount, probability, parsed.data.side);
 
-    const { data: insertedBet, error: betError } = await supabase
-      .from("bets")
+    const betsTable = supabase.from("bets") as unknown as {
+      insert: (values: BetInsertRow) => {
+        select: (
+          columns: string,
+        ) => {
+          single: () => Promise<{ data: BetInsertedRow | null; error: { code?: string; message: string } | null }>;
+        };
+      };
+    };
+
+    const { data: insertedBet, error: betError } = await betsTable
       .insert({
         user_id: user.id,
         market_id: marketId,
@@ -183,10 +228,18 @@ export async function POST(
         ? yesVolume + parsed.data.amount
         : noVolume + parsed.data.amount;
 
-    const { error: volumeError } = await supabase
-      .from("markets")
-      .update({ [volumeColumn]: nextVolume })
-      .eq("id", marketId);
+    const marketsTable = supabase.from("markets") as unknown as {
+      update: (
+        values: Record<string, number>,
+      ) => {
+        eq: (
+          column: string,
+          value: string,
+        ) => Promise<{ error: { message: string } | null }>;
+      };
+    };
+
+    const { error: volumeError } = await marketsTable.update({ [volumeColumn]: nextVolume }).eq("id", marketId);
 
     if (volumeError) {
       return NextResponse.json(

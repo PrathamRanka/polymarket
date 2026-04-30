@@ -5,6 +5,27 @@ import { createClient } from "@/lib/supabase/server";
 import { calculateProbability } from "@/lib/utils";
 import type { Market, MarketStatus } from "@/types";
 
+interface CategoryRow {
+  id: string;
+  name: string;
+  slug: string;
+  icon: string;
+}
+
+interface MarketsPageMarketRow {
+  id: string;
+  title: string;
+  description: string;
+  category_id: string;
+  creator_id: string;
+  yes_volume: number | string | null;
+  no_volume: number | string | null;
+  expires_at: string;
+  status: MarketStatus;
+  created_at: string;
+  categories: CategoryRow[] | CategoryRow | null;
+}
+
 interface MarketsPageProps {
   searchParams?: Promise<{ category?: string; status?: MarketStatus }>;
 }
@@ -28,7 +49,7 @@ export default async function MarketsPage({ searchParams }: MarketsPageProps) {
 
   const { data } = await query.limit(30);
 
-  const markets: Market[] = (data ?? []).map((row) => {
+  const markets: Market[] = (data ?? []).map((row: MarketsPageMarketRow) => {
     const categoryRow = Array.isArray(row.categories) ? row.categories[0] : row.categories;
     const yesVolume = Number(row.yes_volume ?? 0);
     const noVolume = Number(row.no_volume ?? 0);

@@ -3,6 +3,16 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { ApiError, ApiSuccess, LeaderboardEntry, UserRank } from "@/types";
 
+interface LeaderboardReportRow {
+  rank: number;
+  username: string;
+  score: number;
+  wins: number;
+  losses: number;
+  win_rate: number;
+  streak: number;
+}
+
 export const revalidate = 60;
 
 export async function GET(request: Request): Promise<NextResponse<ApiSuccess<LeaderboardEntry[]> | ApiError>> {
@@ -12,8 +22,14 @@ export async function GET(request: Request): Promise<NextResponse<ApiSuccess<Lea
 
   try {
     const supabase = await createClient();
+    const rpcClient = supabase as typeof supabase & {
+      rpc: (
+        procedure: string,
+        args: { p_limit: number },
+      ) => Promise<{ data: LeaderboardReportRow[] | null; error: { message: string } | null }>;
+    };
 
-    const { data, error } = await supabase.rpc("get_leaderboard_report", {
+    const { data, error } = await rpcClient.rpc("get_leaderboard_report", {
       p_limit: limit,
     });
 
@@ -28,16 +44,7 @@ export async function GET(request: Request): Promise<NextResponse<ApiSuccess<Lea
       );
     }
 
-    const entries: LeaderboardEntry[] = (data ?? []).map(
-      (row: {
-        rank: number;
-        username: string;
-        score: number;
-        wins: number;
-        losses: number;
-        win_rate: number;
-        streak: number;
-      }) => {
+    const entries: LeaderboardEntry[] = (data ?? []).map((row: LeaderboardReportRow) => {
         const wins = Number(row.wins);
         const losses = Number(row.losses);
         const total = wins + losses;
@@ -57,8 +64,7 @@ export async function GET(request: Request): Promise<NextResponse<ApiSuccess<Lea
           win_rate: safeWinRate,
           total_wagered: 0,
         };
-      },
-    );
+      });
 
     return NextResponse.json(
       { data: entries },

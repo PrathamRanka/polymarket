@@ -26,7 +26,7 @@ export function useRealtimeOdds(marketId: string) {
           table: "markets",
           filter: `id=eq.${marketId}`,
         },
-        (payload) => {
+        (payload: { new: Partial<Market> }) => {
           const current = queryClient.getQueryData<Market>(["market", marketId]);
           if (!current) {
             return;
@@ -40,7 +40,7 @@ export function useRealtimeOdds(marketId: string) {
           });
         },
       )
-      .subscribe((status) => {
+      .subscribe((status: string) => {
         setIsConnected(status === "SUBSCRIBED");
       });
 

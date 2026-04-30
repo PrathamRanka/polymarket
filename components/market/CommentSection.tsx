@@ -1,5 +1,17 @@
 import { createClient } from "@/lib/supabase/server";
 
+interface CommentAuthorRow {
+  username: string;
+  rank: string;
+}
+
+interface CommentRow {
+  id: string;
+  content: string;
+  created_at: string;
+  users: CommentAuthorRow[] | CommentAuthorRow | null;
+}
+
 interface CommentSectionProps {
   marketId: string;
 }
@@ -17,7 +29,7 @@ export async function CommentSection({ marketId }: CommentSectionProps) {
     <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
       <h2 className="text-lg font-semibold text-zinc-100">Discussion</h2>
       <div className="mt-4 space-y-3">
-        {(data ?? []).map((comment) => {
+        {(data ?? []).map((comment: CommentRow) => {
           const user = Array.isArray(comment.users) ? comment.users[0] : comment.users;
           return (
             <article key={comment.id} className="rounded-md border border-zinc-800 bg-zinc-950/60 p-3">

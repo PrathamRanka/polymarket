@@ -3,6 +3,38 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { ApiError, ApiSuccess, Bet, Portfolio, Transaction, User } from "@/types";
 
+interface PortfolioProfileRow {
+  id: string;
+  username: string;
+  email: string;
+  wallet_balance: number | string;
+  streak_count: number | string;
+  rank: User["rank"];
+  created_at: string;
+}
+
+interface PortfolioBetRow {
+  id: string;
+  user_id: string;
+  market_id: string;
+  side: Bet["side"];
+  amount: number | string;
+  shares: number | string;
+  potential_payout: number | string;
+  status: Bet["status"];
+  created_at: string;
+}
+
+interface PortfolioTransactionRow {
+  id: string;
+  user_id: string;
+  type: Transaction["type"];
+  amount: number | string;
+  reference_id: string | null;
+  description: string;
+  created_at: string;
+}
+
 export async function GET(): Promise<NextResponse<ApiSuccess<Portfolio> | ApiError>> {
   try {
     const supabase = await createClient();
@@ -23,7 +55,9 @@ export async function GET(): Promise<NextResponse<ApiSuccess<Portfolio> | ApiErr
       .eq("id", user.id)
       .single();
 
-    if (profileError || !profile) {
+    const profileRow = profile as PortfolioProfileRow | null;
+
+    if (profileError || !profileRow) {
       return NextResponse.json(
         { error: "Profile not found", code: "PROFILE_NOT_FOUND", status: 404 },
         { status: 404 },
@@ -61,7 +95,7 @@ export async function GET(): Promise<NextResponse<ApiSuccess<Portfolio> | ApiErr
       );
     }
 
-    const allBets: Bet[] = (bets ?? []).map((bet) => ({
+    const allBets: Bet[] = (bets ?? []).map((bet: PortfolioBetRow) => ({
       id: bet.id,
       user_id: bet.user_id,
       market_id: bet.market_id,
@@ -86,16 +120,16 @@ export async function GET(): Promise<NextResponse<ApiSuccess<Portfolio> | ApiErr
     const roi = totalWagered > 0 ? ((totalWon - totalLost) / totalWagered) * 100 : 0;
 
     const profileUser: User = {
-      id: profile.id,
-      username: profile.username,
-      email: profile.email,
-      wallet_balance: Number(profile.wallet_balance),
-      streak_count: Number(profile.streak_count),
-      rank: profile.rank as User["rank"],
-      created_at: profile.created_at,
+      id: profileRow.id,
+      username: profileRow.username,
+      email: profileRow.email,
+      wallet_balance: Number(profileRow.wallet_balance),
+      streak_count: Number(profileRow.streak_count),
+      rank: profileRow.rank,
+      created_at: profileRow.created_at,
     };
 
-    const txRows: Transaction[] = (transactions ?? []).map((tx) => ({
+    const txRows: Transaction[] = (transactions ?? []).map((tx: PortfolioTransactionRow) => ({
       id: tx.id,
       user_id: tx.user_id,
       type: tx.type as Transaction["type"],

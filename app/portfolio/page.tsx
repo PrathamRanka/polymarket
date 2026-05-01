@@ -7,6 +7,16 @@ import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { formatCoins } from "@/lib/utils";
 import type { Portfolio } from "@/types";
 
+interface PortfolioProfileRow {
+  id: string;
+  username: string;
+  email: string;
+  wallet_balance: number | string;
+  streak_count: number | string;
+  rank: Portfolio["user"]["rank"];
+  created_at: string;
+}
+
 interface PortfolioPageBetRow {
   id: string;
   user_id: string;
@@ -62,6 +72,7 @@ async function getPortfolio(): Promise<Portfolio | null> {
     return null;
   }
 
+  const profileRow = profile as PortfolioProfileRow;
   const betRows = (bets ?? []) as PortfolioPageBetRow[];
   const transactionRows = (transactions ?? []) as PortfolioPageTransactionRow[];
 
@@ -100,13 +111,13 @@ async function getPortfolio(): Promise<Portfolio | null> {
 
   return {
     user: {
-      id: profile.id,
-      username: profile.username,
-      email: profile.email,
-      wallet_balance: Number(profile.wallet_balance),
-      streak_count: Number(profile.streak_count),
-      rank: profile.rank,
-      created_at: profile.created_at,
+      id: profileRow.id,
+      username: profileRow.username,
+      email: profileRow.email,
+      wallet_balance: Number(profileRow.wallet_balance),
+      streak_count: Number(profileRow.streak_count),
+      rank: profileRow.rank,
+      created_at: profileRow.created_at,
     },
     open_bets: openBets,
     closed_bets: closedBets,

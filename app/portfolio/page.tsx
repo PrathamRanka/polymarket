@@ -1,31 +1,129 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import ROIChart from "@/components/portfolio/ROIChart";
-import { createClient } from "@/lib/supabase/server";
+import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth/session";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { formatCoins } from "@/lib/utils";
 import type { Portfolio } from "@/types";
 
+interface PortfolioPageBetRow {
+  id: string;
+  user_id: string;
+  market_id: string;
+  side: "YES" | "NO";
+  amount: number | string;
+  shares: number | string;
+  potential_payout: number | string;
+  status: "OPEN" | "WON" | "LOST" | "REFUNDED";
+  created_at: string;
+}
+
+interface PortfolioPageTransactionRow {
+  id: string;
+  user_id: string;
+  type: "BET_PLACED" | "BET_WON" | "BET_REFUND" | "SIGNUP_BONUS" | "DAILY_BONUS";
+  amount: number | string;
+  reference_id: string | null;
+  description: string;
+  created_at: string;
+}
+
 async function getPortfolio(): Promise<Portfolio | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+  const userId = await verifySessionToken(sessionToken);
 
-  if (!user) return null;
+  if (!userId) return null;
 
-  const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/api/portfolio`, {
-    cache: "no-store",
-    headers: {
-      cookie: "",
-    },
-  });
+  const supabase = getSupabaseAdminClient();
 
-  if (!response.ok) {
+  const [{ data: profile, error: profileError }, { data: bets, error: betsError }, { data: transactions, error: txError }] =
+    await Promise.all([
+      supabase
+        .from("users")
+        .select("id,username,email,wallet_balance,streak_count,rank,created_at")
+        .eq("id", userId)
+        .single(),
+      supabase
+        .from("bets")
+        .select("id,user_id,market_id,side,amount,shares,potential_payout,status,created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("transactions")
+        .select("id,user_id,type,amount,reference_id,description,created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(100),
+    ]);
+
+  if (profileError || betsError || txError || !profile) {
     return null;
   }
 
-  const payload = (await response.json()) as { data: Portfolio };
-  return payload.data;
+  const betRows = (bets ?? []) as PortfolioPageBetRow[];
+  const transactionRows = (transactions ?? []) as PortfolioPageTransactionRow[];
+
+  const openBets = betRows
+    .map((bet) => ({
+      id: bet.id,
+      user_id: bet.user_id,
+      market_id: bet.market_id,
+      side: bet.side,
+      amount: Number(bet.amount),
+      shares: Number(bet.shares),
+      potential_payout: Number(bet.potential_payout),
+      status: bet.status,
+      created_at: bet.created_at,
+    }))
+    .filter((bet) => bet.status === "OPEN");
+
+  const closedBets = betRows
+    .map((bet) => ({
+      id: bet.id,
+      user_id: bet.user_id,
+      market_id: bet.market_id,
+      side: bet.side,
+      amount: Number(bet.amount),
+      shares: Number(bet.shares),
+      potential_payout: Number(bet.potential_payout),
+      status: bet.status,
+      created_at: bet.created_at,
+    }))
+    .filter((bet) => bet.status !== "OPEN");
+
+  const totalWagered = openBets.concat(closedBets).reduce((acc, bet) => acc + bet.amount, 0);
+  const totalWon = closedBets.filter((bet) => bet.status === "WON").reduce((acc, bet) => acc + bet.potential_payout, 0);
+  const totalLost = closedBets.filter((bet) => bet.status === "LOST").reduce((acc, bet) => acc + bet.amount, 0);
+  const roi = totalWagered > 0 ? ((totalWon - totalLost) / totalWagered) * 100 : 0;
+
+  return {
+    user: {
+      id: profile.id,
+      username: profile.username,
+      email: profile.email,
+      wallet_balance: Number(profile.wallet_balance),
+      streak_count: Number(profile.streak_count),
+      rank: profile.rank,
+      created_at: profile.created_at,
+    },
+    open_bets: openBets,
+    closed_bets: closedBets,
+    total_wagered: totalWagered,
+    total_won: totalWon,
+    total_lost: totalLost,
+    roi,
+    transactions: transactionRows.map((tx) => ({
+      id: tx.id,
+      user_id: tx.user_id,
+      type: tx.type,
+      amount: Number(tx.amount),
+      reference_id: tx.reference_id,
+      description: tx.description,
+      created_at: tx.created_at,
+    })),
+  };
 }
 
 export default async function PortfolioPage() {

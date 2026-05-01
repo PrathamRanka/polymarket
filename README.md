@@ -7,7 +7,7 @@ PredictMarket is a college-safe, virtual-coin prediction market built with Next.
 - Next.js 16 App Router
 - TypeScript 5
 - Tailwind CSS 4
-- Supabase Auth, PostgreSQL, and Realtime
+- Supabase PostgreSQL and Realtime
 - TanStack Query v5
 - Zustand
 - Framer Motion
@@ -17,7 +17,7 @@ PredictMarket is a college-safe, virtual-coin prediction market built with Next.
 
 - Responsive market browsing and detail views
 - Virtual betting with optimistic UI updates
-- Supabase-backed login and signup
+- App-managed login and signup backed by the `users` table
 - Portfolio dashboard with ROI and transaction history
 - Leaderboard rankings sourced from the database
 - Admin market resolution flow
@@ -46,6 +46,8 @@ Create a `.env.local` file from `.env.local.example` and fill in your Supabase v
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `NEXT_PUBLIC_APP_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `JWT_SECRET`
 
 Example:
 
@@ -53,6 +55,8 @@ Example:
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+JWT_SECRET=your-long-random-secret-at-least-32-chars
 ```
 
 ## Database Setup
@@ -63,13 +67,13 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
    1. `database/schema.sql`
    2. `database/procedures.sql`
    3. `database/seeds.sql` if you want starter data
-4. Make sure Supabase Auth is enabled for email/password login.
+4. Make sure the `users` table, RLS policies, and seed data are imported successfully.
 
 Notes:
 
 - The schema creates users, categories, markets, bets, transactions, comments, leaderboard scores, and admin logs.
 - The procedures file contains the probability and payout helpers plus the market resolution logic.
-- The current app uses database-driven profiles, so signup creates the auth user and a matching profile row.
+- The current app uses database-driven profiles, so signup creates a user row with a hashed password and a signed app session cookie.
 
 ## Install
 
@@ -88,6 +92,20 @@ Then open:
 ```bash
 http://localhost:3000
 ```
+
+## Vercel Deploy
+
+1. Push the repository to GitHub.
+2. Import the project into Vercel.
+3. Add the following environment variables in the Vercel project settings:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `NEXT_PUBLIC_APP_URL`
+   - `JWT_SECRET`
+4. Set `NEXT_PUBLIC_APP_URL` to your Vercel deployment URL.
+5. Run the SQL schema and seed files in Supabase before testing the deployed app.
+6. Deploy and verify signup, login, logout, market navigation, and bet placement.
 
 ## Build For Production
 
@@ -134,6 +152,7 @@ npm run start
 
 ## Troubleshooting
 
-- If login or signup fails, verify the Supabase URL and anon key in `.env.local`.
+- If login or signup fails, verify the Supabase URL, anon key, service role key, and `JWT_SECRET` in `.env.local`.
 - If database queries fail, confirm the SQL schema and procedures were imported successfully.
 - If TypeScript complains about Supabase query results, add local row interfaces that match the selected columns.
+- If the navbar shows stale wallet data after logout, hard refresh once after updating to the latest code.

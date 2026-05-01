@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { createClient } from "@/lib/supabase/server";
+import { hashPassword } from "@/lib/auth/password";
+import { SESSION_COOKIE_NAME, createSessionToken, getSessionCookieOptions } from "@/lib/auth/session";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { ApiError, ApiSuccess, User } from "@/types";
 
 const signupSchema = z.object({
@@ -26,42 +28,59 @@ export async function POST(request: Request): Promise<NextResponse<ApiSuccess<{ 
       );
     }
 
-    const supabase = await createClient();
-    const { data: authResult, error: authError } = await supabase.auth.signUp({
-      email: parsed.data.email,
-      password: parsed.data.password,
-    });
+    const supabase = getSupabaseAdminClient();
 
-    if (authError || !authResult.user) {
+    const [{ data: existingEmail }, { data: existingUsername }] = await Promise.all([
+      supabase.from("users").select("id").eq("email", parsed.data.email).maybeSingle(),
+      supabase.from("users").select("id").eq("username", parsed.data.username).maybeSingle(),
+    ]);
+
+    if (existingEmail) {
       return NextResponse.json(
-        { error: authError?.message ?? "Failed to create account", code: "SIGNUP_FAILED", status: 400 },
-        { status: 400 },
+        { error: "Email already in use", code: "EMAIL_EXISTS", status: 409 },
+        { status: 409 },
       );
     }
 
+    if (existingUsername) {
+      return NextResponse.json(
+        { error: "Username already in use", code: "USERNAME_EXISTS", status: 409 },
+        { status: 409 },
+      );
+    }
+
+    const userId = crypto.randomUUID();
+    const passwordHash = await hashPassword(parsed.data.password);
+    const createdAt = new Date().toISOString();
+
     const profileSeed = {
-      id: authResult.user.id,
+      id: userId,
       username: parsed.data.username,
       email: parsed.data.email,
-      password_hash: "supabase-auth-managed",
+      password_hash: passwordHash,
       wallet_balance: 1000,
       streak_count: 0,
       rank: "Novice" as const,
-      last_active_at: new Date().toISOString(),
+      last_active_at: createdAt,
     };
+
+    console.log("[SIGNUP] Creating profile:", profileSeed);
 
     const usersTable = supabase.from("users") as unknown as {
-      upsert: (
-        values: typeof profileSeed,
-        options?: { onConflict?: string },
-      ) => Promise<{ error: { message: string } | null }>;
+      insert: (values: typeof profileSeed) => Promise<{ error: { message: string } | null }>;
     };
 
-    const { error: profileError } = await usersTable.upsert(profileSeed, { onConflict: "id" });
+    const { error: profileError } = await usersTable.insert(profileSeed);
 
     if (profileError) {
+      console.error("[SIGNUP] Profile error:", profileError);
       return NextResponse.json(
-        { error: "Failed to create profile", code: "PROFILE_CREATE_FAILED", status: 500 },
+        { 
+          error: "Failed to create profile", 
+          code: "PROFILE_CREATE_FAILED", 
+          status: 500,
+          debug: profileError?.message,
+        },
         { status: 500 },
       );
     }
@@ -73,19 +92,30 @@ export async function POST(request: Request): Promise<NextResponse<ApiSuccess<{ 
       wallet_balance: profileSeed.wallet_balance,
       streak_count: profileSeed.streak_count,
       rank: profileSeed.rank,
-      created_at: new Date().toISOString(),
+      created_at: createdAt,
     };
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       {
         data: { user },
         message: "Account created",
       },
       { status: 201 },
     );
-  } catch {
+
+    const sessionToken = await createSessionToken(user.id);
+    response.cookies.set(SESSION_COOKIE_NAME, sessionToken, getSessionCookieOptions());
+
+    return response;
+  } catch (error) {
+    console.error("[SIGNUP] Catch block error:", error instanceof Error ? error.message : error);
     return NextResponse.json(
-      { error: "Internal server error", code: "INTERNAL_SERVER_ERROR", status: 500 },
+      { 
+        error: "Internal server error", 
+        code: "INTERNAL_SERVER_ERROR", 
+        status: 500,
+        debug: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 },
     );
   }

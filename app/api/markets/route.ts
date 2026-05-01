@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { z } from "zod";
 
+import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth/session";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { calculateProbability } from "@/lib/utils";
 import type { ApiError, ApiSuccess, CreateMarketFormValues, Market, MarketStatus } from "@/types";
@@ -147,12 +150,12 @@ export async function GET(request: Request): Promise<NextResponse<ApiSuccess<Mar
 
 export async function POST(request: Request): Promise<NextResponse<ApiSuccess<Market> | ApiError>> {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const supabase = getSupabaseAdminClient();
+    const cookieStore = await cookies();
+    const sessionToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+    const userId = await verifySessionToken(sessionToken);
 
-    if (!user) {
+    if (!userId) {
       return errorResponse({ error: "Unauthorized", code: "UNAUTHORIZED", status: 401 });
     }
 
@@ -182,7 +185,7 @@ export async function POST(request: Request): Promise<NextResponse<ApiSuccess<Ma
         title: parsed.data.title,
         description: parsed.data.description,
         category_id: parsed.data.category_id,
-        creator_id: user.id,
+        creator_id: userId,
         expires_at: parsed.data.expires_at,
       })
       .select("id,title,description,category_id,creator_id,yes_volume,no_volume,expires_at,status,created_at,categories(id,name,slug,icon)")

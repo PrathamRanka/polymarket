@@ -13,22 +13,27 @@ export function ROIChart({ transactions }: ROIChartProps) {
   const [range, setRange] = useState<"7d" | "30d" | "all">("30d");
 
   const chartData = useMemo(() => {
-    const now = Date.now();
+    const latestTimestamp = transactions.reduce((max, tx) => {
+      const createdAt = new Date(tx.created_at).getTime();
+      return Number.isFinite(createdAt) ? Math.max(max, createdAt) : max;
+    }, 0);
+
     const filtered = transactions
       .filter((tx) => {
         if (range === "all") return true;
         const days = range === "7d" ? 7 : 30;
-        return now - new Date(tx.created_at).getTime() <= days * 24 * 60 * 60 * 1000;
+        const txTime = new Date(tx.created_at).getTime();
+        if (!Number.isFinite(txTime)) return false;
+        return latestTimestamp - txTime <= days * 24 * 60 * 60 * 1000;
       })
       .slice()
       .reverse();
 
-    let running = 0;
-    return filtered.map((tx) => {
-      running += tx.amount;
+    return filtered.map((tx, index) => {
+      const value = filtered.slice(0, index + 1).reduce((sum, item) => sum + item.amount, 0);
       return {
         date: new Date(tx.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
-        value: running,
+        value,
       };
     });
   }, [range, transactions]);

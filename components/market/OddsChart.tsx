@@ -13,7 +13,6 @@ import {
 } from "recharts";
 
 interface OddsChartProps {
-  marketId: string;
   currentProb: number;
 }
 
@@ -42,8 +41,8 @@ function generateHistory(currentProb: number): ChartRow[] {
   return rows;
 }
 
-export function OddsChart({ marketId, currentProb }: OddsChartProps) {
-  const data = useMemo(() => generateHistory(currentProb), [currentProb, marketId]);
+export function OddsChart({ currentProb }: OddsChartProps) {
+  const data = useMemo(() => generateHistory(currentProb), [currentProb]);
   const lineColor = currentProb >= 0.5 ? "#22c55e" : "#ef4444";
 
   return (

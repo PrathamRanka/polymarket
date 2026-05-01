@@ -1,12 +1,15 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 import WalletBadge from "@/components/wallet/WalletBadge";
+import { useWallet } from "@/stores/walletStore";
+import type { User } from "@/types";
 
 const navLinks = [
   { href: "/markets", label: "Markets" },
@@ -16,9 +19,63 @@ const navLinks = [
 
 export function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const { setBalance } = useWallet();
 
-  const links = useMemo(() => navLinks, []);
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadUser() {
+      try {
+        const response = await fetch("/api/auth/me", { cache: "no-store" });
+
+        if (!response.ok) {
+          if (!cancelled) {
+            setUser(null);
+          }
+          return;
+        }
+
+        const payload = (await response.json()) as { data?: { user?: User } };
+
+        if (!cancelled) {
+          const nextUser = payload.data?.user ?? null;
+          setUser(nextUser);
+
+          if (nextUser) {
+            setBalance(nextUser.wallet_balance);
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          setUser(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingUser(false);
+        }
+      }
+    }
+
+    void loadUser();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname, setBalance]);
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", {
+      method: "POST",
+    });
+    setUser(null);
+    setBalance(0);
+    router.refresh();
+    router.push("/login");
+  }
 
   return (
     <header className="sticky top-0 z-50 border-b border-zinc-800 bg-zinc-900/80 backdrop-blur-md">
@@ -29,7 +86,7 @@ export function Navbar() {
         </Link>
 
         <nav className="hidden items-center gap-6 md:flex">
-          {links.map((link) => {
+          {navLinks.map((link) => {
             const active = pathname === link.href || pathname?.startsWith(`${link.href}/`);
             return (
               <Link
@@ -47,13 +104,30 @@ export function Navbar() {
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
-          <WalletBadge />
-          <Link href="/signup" className="rounded-md bg-blue-500 px-3 py-2 text-sm font-medium text-white hover:bg-blue-400">
-            Sign Up
-          </Link>
-          <Link href="/login" className="rounded-md border border-zinc-700 px-3 py-2 text-sm font-medium text-zinc-100 hover:bg-zinc-800">
-            Login
-          </Link>
+          {user ? <WalletBadge /> : null}
+          {isLoadingUser ? null : user ? (
+            <>
+              <span className="rounded-md border border-zinc-700 px-3 py-2 text-sm font-medium text-zinc-100">
+                {user.username}
+              </span>
+              <button
+                type="button"
+                className="rounded-md border border-zinc-700 px-3 py-2 text-sm font-medium text-zinc-100 hover:bg-zinc-800"
+                onClick={() => void handleLogout()}
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/signup" className="rounded-md bg-blue-500 px-3 py-2 text-sm font-medium text-white hover:bg-blue-400">
+                Sign Up
+              </Link>
+              <Link href="/login" className="rounded-md border border-zinc-700 px-3 py-2 text-sm font-medium text-zinc-100 hover:bg-zinc-800">
+                Login
+              </Link>
+            </>
+          )}
         </div>
 
         <button
@@ -69,7 +143,7 @@ export function Navbar() {
       {open ? (
         <div className="border-t border-zinc-800 bg-zinc-900 md:hidden">
           <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 py-4 sm:px-6">
-            {links.map((link) => (
+            {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -79,9 +153,11 @@ export function Navbar() {
                 {link.label}
               </Link>
             ))}
-            <div className="pt-2">
-              <WalletBadge />
-            </div>
+            {user ? (
+              <div className="pt-2">
+                <WalletBadge />
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}

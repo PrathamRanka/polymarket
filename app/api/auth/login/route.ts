@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { createClient } from "@/lib/supabase/server";
+import { verifyPassword } from "@/lib/auth/password";
+import { SESSION_COOKIE_NAME, createSessionToken, getSessionCookieOptions } from "@/lib/auth/session";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { ApiError, ApiSuccess, User, UserRank } from "@/types";
 
 const loginSchema = z.object({
@@ -13,6 +15,7 @@ interface LoginProfileRow {
   id: string;
   username: string;
   email: string;
+  password_hash: string;
   wallet_balance: number | string;
   streak_count: number | string;
   rank: string;
@@ -35,35 +38,42 @@ export async function POST(request: Request): Promise<NextResponse<ApiSuccess<{ 
       );
     }
 
-    const supabase = await createClient();
-    const { data: authResult, error: authError } = await supabase.auth.signInWithPassword({
-      email: parsed.data.email,
-      password: parsed.data.password,
-    });
-
-    if (authError || !authResult.user) {
-      return NextResponse.json(
-        { error: "Invalid email or password", code: "INVALID_CREDENTIALS", status: 401 },
-        { status: 401 },
-      );
-    }
-
+    const supabase = getSupabaseAdminClient();
     const { data: profile, error: profileError } = await supabase
       .from("users")
-      .select("id,username,email,wallet_balance,streak_count,rank,created_at")
-      .eq("id", authResult.user.id)
-      .single();
+      .select("id,username,email,password_hash,wallet_balance,streak_count,rank,created_at")
+      .eq("email", parsed.data.email)
+      .maybeSingle();
 
     const profileRow = profile as LoginProfileRow | null;
 
     if (profileError || !profileRow) {
+      console.error("[LOGIN] Profile lookup error:", profileError);
       return NextResponse.json(
-        { error: "Profile not found", code: "PROFILE_NOT_FOUND", status: 404 },
-        { status: 404 },
+        { 
+          error: "Invalid email or password", 
+          code: "INVALID_CREDENTIALS", 
+          status: 401,
+          debug: profileError?.message,
+        },
+        { status: 401 },
       );
     }
 
-    return NextResponse.json({
+    const passwordMatches = await verifyPassword(parsed.data.password, profileRow.password_hash);
+
+    if (!passwordMatches) {
+      return NextResponse.json(
+        { 
+          error: "Invalid email or password", 
+          code: "INVALID_CREDENTIALS", 
+          status: 401,
+        },
+        { status: 401 },
+      );
+    }
+
+    const response = NextResponse.json({
       data: {
         user: {
           id: profileRow.id,
@@ -77,9 +87,20 @@ export async function POST(request: Request): Promise<NextResponse<ApiSuccess<{ 
       },
       message: "Signed in",
     });
-  } catch {
+
+    const sessionToken = await createSessionToken(profileRow.id);
+    response.cookies.set(SESSION_COOKIE_NAME, sessionToken, getSessionCookieOptions());
+
+    return response;
+  } catch (error) {
+    console.error("[LOGIN] Catch block error:", error instanceof Error ? error.message : error);
     return NextResponse.json(
-      { error: "Internal server error", code: "INTERNAL_SERVER_ERROR", status: 500 },
+      { 
+        error: "Internal server error", 
+        code: "INTERNAL_SERVER_ERROR", 
+        status: 500,
+        debug: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 },
     );
   }

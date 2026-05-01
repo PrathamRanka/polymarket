@@ -103,7 +103,7 @@ export default async function MarketDetailPage({ params }: Params) {
           <p className="mt-2 text-sm text-zinc-400">Expires in {formatTimeLeft(market.expires_at)}</p>
         </header>
 
-        <OddsChart marketId={market.id} currentProb={market.yes_probability} />
+        <OddsChart currentProb={market.yes_probability} />
 
         <section className="grid grid-cols-1 gap-3 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 sm:grid-cols-3">
           <article>

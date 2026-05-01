@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
-import { createClient } from "@/lib/supabase/server";
+import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth/session";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { ApiError, ApiSuccess, Bet, Portfolio, Transaction, User } from "@/types";
 
 interface PortfolioProfileRow {
@@ -37,12 +39,12 @@ interface PortfolioTransactionRow {
 
 export async function GET(): Promise<NextResponse<ApiSuccess<Portfolio> | ApiError>> {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const supabase = getSupabaseAdminClient();
+    const cookieStore = await cookies();
+    const sessionToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+    const userId = await verifySessionToken(sessionToken);
 
-    if (!user) {
+    if (!userId) {
       return NextResponse.json(
         { error: "Unauthorized", code: "UNAUTHORIZED", status: 401 },
         { status: 401 },
@@ -52,7 +54,7 @@ export async function GET(): Promise<NextResponse<ApiSuccess<Portfolio> | ApiErr
     const { data: profile, error: profileError } = await supabase
       .from("users")
       .select("id,username,email,wallet_balance,streak_count,rank,created_at")
-      .eq("id", user.id)
+      .eq("id", userId)
       .single();
 
     const profileRow = profile as PortfolioProfileRow | null;
@@ -67,7 +69,7 @@ export async function GET(): Promise<NextResponse<ApiSuccess<Portfolio> | ApiErr
     const { data: bets, error: betsError } = await supabase
       .from("bets")
       .select("id,user_id,market_id,side,amount,shares,potential_payout,status,created_at")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
     if (betsError) {
@@ -80,7 +82,7 @@ export async function GET(): Promise<NextResponse<ApiSuccess<Portfolio> | ApiErr
     const { data: transactions, error: txError } = await supabase
       .from("transactions")
       .select("id,user_id,type,amount,reference_id,description,created_at")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(100);
 

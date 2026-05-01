@@ -11,6 +11,7 @@ export type AuthMode = "login" | "signup";
 
 export interface AuthFormProps {
   mode: AuthMode;
+  initialValues?: Partial<AuthFormState>;
 }
 
 interface AuthFormState {
@@ -23,12 +24,17 @@ interface AuthResponse {
   user: User;
 }
 
-export function AuthForm({ mode }: AuthFormProps) {
+interface AuthErrorPayload extends ApiError {
+  debug?: string;
+}
+
+export function AuthForm({ mode, initialValues }: AuthFormProps) {
   const router = useRouter();
   const [form, setForm] = useState<AuthFormState>({
     username: "",
-    email: "",
-    password: "",
+    email: initialValues?.email ?? "",
+    password: initialValues?.password ?? "",
+    ...initialValues,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -50,8 +56,10 @@ export function AuthForm({ mode }: AuthFormProps) {
       const payload = (await response.json()) as ApiSuccess<AuthResponse> | ApiError;
 
       if (!response.ok) {
-        const errorMessage = "error" in payload ? payload.error : "Authentication failed";
-        throw new Error(errorMessage);
+        const errorData = payload as AuthErrorPayload;
+        const errorMessage = errorData.error || "Authentication failed";
+        const debug = errorData.debug ? ` - ${errorData.debug}` : "";
+        throw new Error(errorMessage + debug);
       }
 
       toast.success(isSignup ? "Account created" : "Signed in");
@@ -59,6 +67,7 @@ export function AuthForm({ mode }: AuthFormProps) {
       router.refresh();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Authentication failed";
+      console.error("[AuthForm]", message);
       toast.error(message);
     } finally {
       setIsSubmitting(false);

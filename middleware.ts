@@ -1,52 +1,20 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+
+import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth/session";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
 const PROTECTED_ROUTES = ["/portfolio", "/admin"];
 const PUBLIC_AUTH_ROUTES = ["/login", "/signup"];
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
+  const response = NextResponse.next({
     request: {
       headers: request.headers,
     },
   });
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return response;
-  }
-
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      get(name: string): string | undefined {
-        return request.cookies.get(name)?.value;
-      },
-      set(name: string, value: string, options: CookieOptions): void {
-        request.cookies.set({ name, value, ...options });
-        response = NextResponse.next({
-          request: {
-            headers: request.headers,
-          },
-        });
-        response.cookies.set({ name, value, ...options });
-      },
-      remove(name: string, options: CookieOptions): void {
-        request.cookies.set({ name, value: "", ...options });
-        response = NextResponse.next({
-          request: {
-            headers: request.headers,
-          },
-        });
-        response.cookies.set({ name, value: "", ...options });
-      },
-    },
-  });
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const sessionToken = request.cookies.get(SESSION_COOKIE_NAME)?.value;
+  const userId = await verifySessionToken(sessionToken);
 
   const pathname = request.nextUrl.pathname;
 
@@ -54,20 +22,23 @@ export async function middleware(request: NextRequest) {
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
 
-  if (isProtected && !user) {
+  if (isProtected && !userId) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
     return NextResponse.redirect(redirectUrl);
   }
 
-  if (pathname.startsWith("/admin") && user) {
+  if (pathname.startsWith("/admin") && userId) {
+    const supabase = getSupabaseAdminClient();
     const { data: profile } = await supabase
       .from("users")
       .select("rank,email")
-      .eq("id", user.id)
-      .single();
+      .eq("id", userId)
+      .maybeSingle();
 
-    const isAdmin = profile?.rank === "Legend" || profile?.email === "admin@predictmarket.com";
+    const profileRow = profile as { rank: string; email: string } | null;
+
+    const isAdmin = profileRow?.rank === "Legend" || profileRow?.email === "admin@predictmarket.com";
 
     if (!isAdmin) {
       const redirectUrl = request.nextUrl.clone();
@@ -80,7 +51,7 @@ export async function middleware(request: NextRequest) {
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
 
-  if (isPublicAuthRoute && user) {
+  if (isPublicAuthRoute && userId) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/markets";
     return NextResponse.redirect(redirectUrl);

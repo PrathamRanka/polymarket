@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { z } from "zod";
 
-import { createClient } from "@/lib/supabase/server";
+import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth/session";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { ApiError, ApiSuccess } from "@/types";
 
 const bodySchema = z.object({
@@ -19,12 +21,12 @@ export async function POST(
   request: Request,
 ): Promise<NextResponse<ApiSuccess<{ resolved: true; market_id: string }> | ApiError>> {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const supabase = getSupabaseAdminClient();
+    const cookieStore = await cookies();
+    const sessionToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+    const userId = await verifySessionToken(sessionToken);
 
-    if (!user) {
+    if (!userId) {
       return NextResponse.json(
         { error: "Unauthorized", code: "UNAUTHORIZED", status: 401 },
         { status: 401 },
@@ -34,8 +36,8 @@ export async function POST(
     const { data: actor, error: actorError } = await supabase
       .from("users")
       .select("id,rank,email")
-      .eq("id", user.id)
-      .single();
+      .eq("id", userId)
+      .maybeSingle();
 
     const actorRow = actor as AdminActorRow | null;
 

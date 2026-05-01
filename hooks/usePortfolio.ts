@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 
@@ -15,9 +16,11 @@ export function usePortfolio() {
     staleTime: 15000,
   });
 
-  if (query.error?.message === "Unauthorized") {
-    router.push("/login");
-  }
+  useEffect(() => {
+    if (query.error?.message === "Unauthorized") {
+      router.push("/login");
+    }
+  }, [query.error?.message, router]);
 
   return {
     portfolio: query.data,

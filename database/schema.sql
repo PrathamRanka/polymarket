@@ -141,10 +141,15 @@ ALTER TABLE leaderboard_scores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE admin_logs ENABLE ROW LEVEL SECURITY;
 
 -- users policies: select/update own row only
-DROP POLICY IF EXISTS users_select_own ON users;
-CREATE POLICY users_select_own ON users
+DROP POLICY IF EXISTS users_select_all ON users;
+CREATE POLICY users_select_all ON users
   FOR SELECT
-  USING (id = auth.uid());
+  USING (true);
+
+DROP POLICY IF EXISTS users_insert_own ON users;
+CREATE POLICY users_insert_own ON users
+  FOR INSERT
+  WITH CHECK (id = auth.uid());
 
 DROP POLICY IF EXISTS users_update_own ON users;
 CREATE POLICY users_update_own ON users

@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { z } from "zod";
 
-import { createClient } from "@/lib/supabase/server";
+import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth/session";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { calculatePotentialPayout, calculateProbability } from "@/lib/utils";
 import type { ApiError, ApiSuccess, Bet, BetSide } from "@/types";
 
@@ -71,19 +73,19 @@ export async function POST(
   const { id: marketId } = await params;
 
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const supabase = getSupabaseAdminClient();
+    const cookieStore = await cookies();
+    const sessionToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+    const userId = await verifySessionToken(sessionToken);
 
-    if (!user) {
+    if (!userId) {
       return NextResponse.json(
         { error: "Unauthorized", code: "UNAUTHORIZED", status: 401 },
         { status: 401 },
       );
     }
 
-    if (!checkRateLimit(user.id)) {
+    if (!checkRateLimit(userId)) {
       return NextResponse.json(
         { error: "Rate limit exceeded", code: "RATE_LIMITED", status: 429 },
         { status: 429 },
@@ -136,7 +138,7 @@ export async function POST(
     const { data: profile, error: profileError } = await supabase
       .from("users")
       .select("wallet_balance")
-      .eq("id", user.id)
+      .eq("id", userId)
       .single();
 
     const profileRow = profile as BetUserRow | null;
@@ -179,7 +181,7 @@ export async function POST(
 
     const { data: insertedBet, error: betError } = await betsTable
       .insert({
-        user_id: user.id,
+        user_id: userId,
         market_id: marketId,
         side: parsed.data.side,
         amount: parsed.data.amount,

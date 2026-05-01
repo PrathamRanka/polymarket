@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { CheckCircle2, Loader2 } from "lucide-react";
@@ -34,7 +34,7 @@ export function BetPanel({ market }: BetPanelProps) {
     resolver: zodResolver(formSchema),
   });
 
-  const amount = form.watch("amount") || 0;
+  const amount = useWatch({ control: form.control, name: "amount" }) ?? 0;
 
   const potentialPayout = useMemo(
     () => calculatePotentialPayout(amount, market.yes_probability, side),

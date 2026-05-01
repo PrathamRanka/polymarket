@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   username VARCHAR(30) UNIQUE NOT NULL CHECK (length(username) >= 3),
   email VARCHAR(255) UNIQUE NOT NULL,
+  phone_number VARCHAR(13) UNIQUE CHECK (phone_number ~ '^\\+91[6-9][0-9]{9}$'),
   password_hash TEXT NOT NULL,
   wallet_balance NUMERIC(12,2) NOT NULL DEFAULT 1000.00 CHECK (wallet_balance >= 0),
   streak_count INTEGER NOT NULL DEFAULT 0 CHECK (streak_count >= 0),

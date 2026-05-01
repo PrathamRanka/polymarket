@@ -1,16 +1,10 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 
 import { hashPassword } from "@/lib/auth/password";
 import { SESSION_COOKIE_NAME, createSessionToken, getSessionCookieOptions } from "@/lib/auth/session";
+import { signupSchema } from "@/lib/auth/validation";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { ApiError, ApiSuccess, User } from "@/types";
-
-const signupSchema = z.object({
-  username: z.string().trim().min(3).max(30),
-  email: z.string().email(),
-  password: z.string().min(8).max(72),
-});
 
 export async function POST(request: Request): Promise<NextResponse<ApiSuccess<{ user: User }> | ApiError>> {
   try {
@@ -30,9 +24,10 @@ export async function POST(request: Request): Promise<NextResponse<ApiSuccess<{ 
 
     const supabase = getSupabaseAdminClient();
 
-    const [{ data: existingEmail }, { data: existingUsername }] = await Promise.all([
+    const [{ data: existingEmail }, { data: existingUsername }, { data: existingPhone }] = await Promise.all([
       supabase.from("users").select("id").eq("email", parsed.data.email).maybeSingle(),
       supabase.from("users").select("id").eq("username", parsed.data.username).maybeSingle(),
+      supabase.from("users").select("id").eq("phone_number", parsed.data.phone_number).maybeSingle(),
     ]);
 
     if (existingEmail) {
@@ -49,6 +44,13 @@ export async function POST(request: Request): Promise<NextResponse<ApiSuccess<{ 
       );
     }
 
+    if (existingPhone) {
+      return NextResponse.json(
+        { error: "Phone number already in use", code: "PHONE_EXISTS", status: 409 },
+        { status: 409 },
+      );
+    }
+
     const userId = crypto.randomUUID();
     const passwordHash = await hashPassword(parsed.data.password);
     const createdAt = new Date().toISOString();
@@ -57,6 +59,7 @@ export async function POST(request: Request): Promise<NextResponse<ApiSuccess<{ 
       id: userId,
       username: parsed.data.username,
       email: parsed.data.email,
+      phone_number: parsed.data.phone_number,
       password_hash: passwordHash,
       wallet_balance: 1000,
       streak_count: 0,

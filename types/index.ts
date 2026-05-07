@@ -31,6 +31,8 @@ export interface Market {
   no_volume: number;
   /** Probability between 0 and 1 */
   yes_probability: number;
+  /** Optional image URL for the market */
+  image_url?: string | null;
   /** ISO8601 timestamp */
   expires_at: string;
   status: MarketStatus;
@@ -133,5 +135,6 @@ export interface CreateMarketFormValues {
   title: string;
   description: string;
   category_id: string;
+  image_url?: string;
   expires_at: string;
 }

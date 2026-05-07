@@ -38,7 +38,10 @@ export async function middleware(request: NextRequest) {
 
     const profileRow = profile as { rank: string; email: string } | null;
 
-    const isAdmin = profileRow?.rank === "Legend" || profileRow?.email === "admin@predictmarket.com";
+    const isAdmin =
+      profileRow?.rank === "Legend" ||
+      profileRow?.email === "admin@predictmarket.com" ||
+      profileRow?.email === "pratham@gmail.com";
 
     if (!isAdmin) {
       const redirectUrl = request.nextUrl.clone();

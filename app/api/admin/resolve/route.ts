@@ -48,7 +48,10 @@ export async function POST(
       );
     }
 
-    const isAdmin = actorRow.rank === "Legend" || actorRow.email === "admin@predictmarket.com";
+    const isAdmin =
+      actorRow.rank === "Legend" ||
+      actorRow.email === "admin@predictmarket.com" ||
+      actorRow.email === "pratham@gmail.com";
     if (!isAdmin) {
       return NextResponse.json(
         { error: "Forbidden", code: "FORBIDDEN", status: 403 },

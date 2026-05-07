@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS markets (
   creator_id UUID NOT NULL REFERENCES users(id),
   yes_volume NUMERIC(14,2) NOT NULL DEFAULT 0 CHECK (yes_volume >= 0),
   no_volume NUMERIC(14,2) NOT NULL DEFAULT 0 CHECK (no_volume >= 0),
+  image_url TEXT,
   resolution_side VARCHAR(3) CHECK (resolution_side IN ('YES', 'NO')),
   status VARCHAR(20) NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN', 'CLOSED', 'RESOLVED', 'CANCELLED')),
   expires_at TIMESTAMPTZ NOT NULL,

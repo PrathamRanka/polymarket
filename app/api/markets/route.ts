@@ -23,6 +23,7 @@ interface MarketRow {
   creator_id: string;
   yes_volume: number | string | null;
   no_volume: number | string | null;
+  image_url?: string | null;
   expires_at: string;
   status: MarketStatus;
   created_at: string;
@@ -41,6 +42,7 @@ interface MarketInsertedRow extends MarketInsertRow {
   id: string;
   yes_volume: number | string | null;
   no_volume: number | string | null;
+  image_url?: string | null;
   status: MarketStatus;
   created_at: string;
   categories: CategoryRow[] | CategoryRow | null;
@@ -53,6 +55,7 @@ const createMarketSchema = z
     title: z.string().min(10).max(200),
     description: z.string().min(20).max(2000),
     category_id: z.string().uuid(),
+    image_url: z.string().url().optional(),
     expires_at: z.string().datetime(),
   })
   .superRefine((value, ctx) => {
@@ -81,7 +84,7 @@ export async function GET(request: Request): Promise<NextResponse<ApiSuccess<Mar
 
     let query = supabase
       .from("markets")
-      .select("id,title,description,category_id,creator_id,yes_volume,no_volume,expires_at,status,created_at,categories(id,name,slug,icon)")
+      .select("id,title,description,category_id,creator_id,yes_volume,no_volume,image_url,expires_at,status,created_at,categories(id,name,slug,icon)")
       .range(offset, offset + limit - 1)
       .order("created_at", { ascending: false });
 
@@ -121,6 +124,7 @@ export async function GET(request: Request): Promise<NextResponse<ApiSuccess<Mar
         yes_volume: yesVolume,
         no_volume: noVolume,
         yes_probability: calculateProbability(yesVolume, noVolume),
+        image_url: row.image_url ?? null,
         expires_at: row.expires_at,
         status: row.status as MarketStatus,
         created_at: row.created_at,
@@ -180,14 +184,20 @@ export async function POST(request: Request): Promise<NextResponse<ApiSuccess<Ma
       };
     };
 
+    const insertPayload: MarketInsertRow & { image_url?: string } = {
+      title: parsed.data.title,
+      description: parsed.data.description,
+      category_id: parsed.data.category_id,
+      creator_id: userId,
+      expires_at: parsed.data.expires_at,
+    };
+
+    if (parsed.data.image_url) {
+      insertPayload.image_url = parsed.data.image_url;
+    }
+
     const { data, error } = await marketsTable
-      .insert({
-        title: parsed.data.title,
-        description: parsed.data.description,
-        category_id: parsed.data.category_id,
-        creator_id: userId,
-        expires_at: parsed.data.expires_at,
-      })
+      .insert(insertPayload)
       .select("id,title,description,category_id,creator_id,yes_volume,no_volume,expires_at,status,created_at,categories(id,name,slug,icon)")
       .single();
 
@@ -215,6 +225,7 @@ export async function POST(request: Request): Promise<NextResponse<ApiSuccess<Ma
       yes_volume: Number(data.yes_volume ?? 0),
       no_volume: Number(data.no_volume ?? 0),
       yes_probability: calculateProbability(Number(data.yes_volume ?? 0), Number(data.no_volume ?? 0)),
+      image_url: data.image_url ?? null,
       expires_at: data.expires_at,
       status: data.status as MarketStatus,
       created_at: data.created_at,

@@ -6,6 +6,7 @@ import { Coins, Timer } from "lucide-react";
 import ProbabilityBar from "@/components/market/ProbabilityBar";
 import { formatCoins, formatTimeLeft } from "@/lib/utils";
 import type { Market } from "@/types";
+import MarketImage from "@/components/market/MarketImage";
 
 interface MarketCardProps {
   market: Market;
@@ -17,6 +18,7 @@ export function MarketCard({ market }: MarketCardProps) {
   return (
     <Link href={`/markets/${market.id}`} className="group block rounded-xl border border-zinc-800 bg-zinc-900/80 p-4 backdrop-blur transition hover:border-blue-500/50 hover:bg-zinc-900">
       <article aria-label={`Market ${market.title}`}>
+        <MarketImage src={market.image_url ?? null} alt={market.title} />
         <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-zinc-800 px-3 py-1 text-xs text-zinc-300">
           <span>{market.category.icon}</span>
           <span>{market.category.name}</span>

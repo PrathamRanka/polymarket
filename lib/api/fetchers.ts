@@ -6,7 +6,15 @@ import type {
   Market,
   MarketStatus,
   Portfolio,
+  UserRank,
 } from "@/types";
+
+export type RecentBet = Bet & {
+  user: {
+    username: string;
+    rank: UserRank;
+  } | null;
+};
 
 interface ApiEnvelope<T> {
   data: T;
@@ -76,6 +84,11 @@ export async function placeBet(
     body: JSON.stringify(payload),
   });
   return parseResponse<Bet>(response);
+}
+
+export async function fetchRecentBets(marketId: string, limit = 10): Promise<RecentBet[]> {
+  const response = await fetch(`/api/markets/${marketId}/bets?limit=${limit}`);
+  return parseResponse<RecentBet[]>(response);
 }
 
 export async function fetchLeaderboard(limit = 50): Promise<LeaderboardEntry[]> {

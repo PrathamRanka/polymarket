@@ -48,6 +48,7 @@ export function useBet(marketId: string) {
     onSuccess: async (bet) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["market", marketId] }),
+        queryClient.invalidateQueries({ queryKey: ["market-recent-bets", marketId] }),
         queryClient.invalidateQueries({ queryKey: ["portfolio"] }),
       ]);
 

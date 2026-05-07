@@ -4,6 +4,7 @@ import { Suspense } from "react";
 
 import BetPanel from "@/components/market/BetPanel";
 import CommentSection from "@/components/market/CommentSection";
+import MarketImage from "@/components/market/MarketImage";
 import OddsChart from "@/components/market/OddsChart";
 import { createClient } from "@/lib/supabase/server";
 import { formatCoins, formatTimeLeft, getMarketStatusColor } from "@/lib/utils";
@@ -31,6 +32,7 @@ interface MarketRow {
   expires_at: string;
   status: MarketStatus;
   created_at: string;
+  image_url: string | null;
   categories: CategoryRow[] | CategoryRow | null;
 }
 
@@ -38,7 +40,7 @@ async function getMarket(id: string): Promise<Market | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("markets")
-    .select("id,title,description,category_id,creator_id,yes_volume,no_volume,expires_at,status,created_at,categories(id,name,slug,icon)")
+    .select("id,title,description,category_id,creator_id,yes_volume,no_volume,expires_at,status,created_at,image_url,categories(id,name,slug,icon)")
     .eq("id", id)
     .single();
 
@@ -68,6 +70,7 @@ async function getMarket(id: string): Promise<Market | null> {
     expires_at: marketRow.expires_at,
     status: marketRow.status,
     created_at: marketRow.created_at,
+    image_url: marketRow.image_url,
   };
 }
 
@@ -102,6 +105,14 @@ export default async function MarketDetailPage({ params }: Params) {
           <h1 className="text-2xl font-semibold text-zinc-100">{market.title}</h1>
           <p className="mt-2 text-sm text-zinc-400">Expires in {formatTimeLeft(market.expires_at)}</p>
         </header>
+
+        {market.image_url && (
+          <div className="relative w-full overflow-hidden rounded-xl border border-zinc-800">
+            <div className="aspect-video bg-zinc-800">
+              <MarketImage src={market.image_url} alt={market.title} />
+            </div>
+          </div>
+        )}
 
         <OddsChart currentProb={market.yes_probability} />
 

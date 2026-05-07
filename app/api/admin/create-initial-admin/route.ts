@@ -30,11 +30,12 @@ export async function POST(request: Request) {
     if (createError && !createData?.user) {
       // If user already exists, try to fetch by email from local users table as a fallback
       const { data: existingUserRow } = await supabase.from("users").select("id,email").eq("email", body.email).single();
-      const existing: any = existingUserRow ?? null;
+      const existing = existingUserRow as { id: string; email: string } | null;
       if (!existing) {
         return NextResponse.json({ error: createError.message }, { status: 500 });
       }
       // ensure row in users table including password_hash
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (supabase.from("users") as any).upsert({ id: existing.id, email: existing.email, username: (existing.email ?? "").split("@")[0], rank: "Legend", wallet_balance: 999999.0, password_hash: passwordHash }, { onConflict: ["id"] });
       return NextResponse.json({ email: existing.email, id: existing.id }, { status: 200 });
     }
@@ -45,6 +46,7 @@ export async function POST(request: Request) {
     }
 
     // create users table row including password_hash so local auth works
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase.from("users") as any).upsert({ id: user.id, email: user.email, username: (user.email ?? "").split("@")[0], rank: "Legend", wallet_balance: 999999.0, password_hash: passwordHash }, { onConflict: ["id"] });
 
     return NextResponse.json({ email: user.email, id: user.id }, { status: 201 });

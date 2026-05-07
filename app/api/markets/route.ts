@@ -99,7 +99,7 @@ export async function GET(request: Request): Promise<NextResponse<ApiSuccess<Mar
     const { data, error } = await query;
     if (error) {
       return errorResponse({
-        error: "Failed to fetch markets",
+        error: `Failed to fetch markets: ${error.message}`,
         code: "MARKET_FETCH_FAILED",
         status: 500,
       });
@@ -143,9 +143,10 @@ export async function GET(request: Request): Promise<NextResponse<ApiSuccess<Mar
         },
       },
     );
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
     return errorResponse({
-      error: "Internal server error",
+      error: `Internal server error: ${msg}`,
       code: "INTERNAL_SERVER_ERROR",
       status: 500,
     });

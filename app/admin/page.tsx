@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import AdminControls from "./AdminControls";
 
 import { createClient } from "@/lib/supabase/server";
+import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth/session";
+import { cookies } from "next/headers";
 import { formatCoins } from "@/lib/utils";
 
 interface AdminMarketRow {
@@ -11,6 +13,7 @@ interface AdminMarketRow {
   yes_volume: number | string;
   no_volume: number | string;
   expires_at: string;
+  image_url?: string | null;
 }
 
 interface AdminProfileRow {
@@ -19,21 +22,15 @@ interface AdminProfileRow {
 }
 
 async function getAdminData() {
+  // verify our session cookie (server-side) and fetch profile by id
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+  const userId = await verifySessionToken(sessionToken);
+
+  if (!userId) return null;
+
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return null;
-  }
-
-  const { data: profile } = await supabase
-    .from("users")
-    .select("rank,email")
-    .eq("id", user.id)
-    .single();
-
+  const { data: profile } = await supabase.from("users").select("rank,email").eq("id", userId).single();
   const profileRow = profile as AdminProfileRow | null;
 
   if (
@@ -56,7 +53,7 @@ async function getAdminData() {
 
   const { data: marketRows } = await supabase
     .from("markets")
-    .select("id,title,status,yes_volume,no_volume,expires_at")
+    .select("id,title,status,yes_volume,no_volume,expires_at,image_url")
     .order("created_at", { ascending: false })
     .limit(30);
 

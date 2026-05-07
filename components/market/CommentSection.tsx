@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import CommentComposer from "@/components/market/CommentComposer";
 
 interface CommentAuthorRow {
   username: string;
@@ -28,7 +29,11 @@ export async function CommentSection({ marketId }: CommentSectionProps) {
   return (
     <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
       <h2 className="text-lg font-semibold text-zinc-100">Discussion</h2>
+      <CommentComposer marketId={marketId} />
       <div className="mt-4 space-y-3">
+        {(data ?? []).length === 0 && (
+          <p className="text-sm text-zinc-500">No discussion yet. Start the thread.</p>
+        )}
         {(data ?? []).map((comment: CommentRow) => {
           const user = Array.isArray(comment.users) ? comment.users[0] : comment.users;
           return (

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 
 interface AdminMarketRow {
   id: string;
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export default function AdminControls({ categories }: Props) {
+  const router = useRouter();
   const [markets, setMarkets] = useState<Props["markets"]>([]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -144,6 +146,7 @@ export default function AdminControls({ categories }: Props) {
       // optimistic update: mark market resolved in list
       setMarkets((prev) => prev?.map((m) => (m.id === marketId ? { ...m, status: "RESOLVED" } : m)));
       setMessage("Market resolved — realtime updates will propagate to clients.");
+      router.refresh();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setMessage(msg);
@@ -249,8 +252,9 @@ export default function AdminControls({ categories }: Props) {
                     await closeAndResolve(m.id, side);
                   }}
                   className="rounded bg-red-600 px-2 py-1 text-xs text-white"
+                  disabled={m.status === "RESOLVED" || m.status === "CANCELLED"}
                 >
-                  Close & Resolve
+                  End & Resolve
                 </button>
 
                 <input

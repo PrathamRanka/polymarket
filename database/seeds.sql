@@ -34,7 +34,7 @@ SET password_hash = EXCLUDED.password_hash,
 
 -- Markets (2 total)
 INSERT INTO markets (id, title, description, category_id, creator_id, yes_volume, no_volume, resolution_side, status, expires_at, image_url, created_at) VALUES
-  ('30000000-0000-0000-0000-000000000001', 'is sanchita a noob ??', 'Predict whether Sanchita is a noob.', '10000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000001', 920.00, 610.00, NULL, 'OPEN', NOW() + INTERVAL '3 days', NULL, NOW() - INTERVAL '5 days'),
+  ('30000000-0000-0000-0000-000000000001', 'Is 2C22 the undisputed champion of complaining to DOAA/DOSA', 'Predict whether 2C22 is the undisputed champion of complaining to DOAA/DOSA.', '10000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000001', 920.00, 610.00, NULL, 'OPEN', NOW() + INTERVAL '3 days', NULL, NOW() - INTERVAL '5 days'),
   ('30000000-0000-0000-0000-000000000002', 'Will we get max marks in DBMS project', 'yayyyyyyyyyyyyyyyyyyyyyyyyyy letssss''go', '10000000-0000-0000-0000-000000000005', '20000000-0000-0000-0000-000000000001', 0.00, 0.00, NULL, 'OPEN', NOW() + INTERVAL '1 day', 'https://res.cloudinary.com/dduzorsii/image/upload/v1778128450/ChatGPT_Image_May_7_2026_10_02_30_AM_cuwpnb.png', NOW())
 ON CONFLICT (id) DO NOTHING;
 

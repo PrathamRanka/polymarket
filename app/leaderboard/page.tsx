@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import LeaderboardTable from "@/components/leaderboard/LeaderboardTable";
+import { LeaderboardCharts } from "@/components/leaderboard/LeaderboardCharts";
 import { createClient } from "@/lib/supabase/server";
 import type { LeaderboardEntry } from "@/types";
 
@@ -63,6 +65,10 @@ export default async function LeaderboardPage() {
           </article>
         ))}
       </section>
+
+      <Suspense fallback={<div className="text-zinc-400">Loading analytics...</div>}>
+        <LeaderboardCharts />
+      </Suspense>
 
       <LeaderboardTable entries={entries.slice(3)} />
     </main>

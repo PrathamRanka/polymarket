@@ -1,7 +1,9 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
 import ROIChart from "@/components/portfolio/ROIChart";
+import { PortfolioCharts } from "@/components/portfolio/PortfolioCharts";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth/session";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { formatCoins } from "@/lib/utils";
@@ -170,6 +172,10 @@ export default async function PortfolioPage() {
       </section>
 
       <ROIChart transactions={portfolio.transactions} />
+
+      <Suspense fallback={<div className="text-zinc-400">Loading portfolio analytics...</div>}>
+        <PortfolioCharts />
+      </Suspense>
 
       <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
         <h2 className="text-lg font-semibold text-zinc-100">Open Positions</h2>

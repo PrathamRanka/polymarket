@@ -7,6 +7,7 @@ import CommentSection from "@/components/market/CommentSection";
 import MarketImage from "@/components/market/MarketImage";
 import OddsChart from "@/components/market/OddsChart";
 import RecentBets from "@/components/market/RecentBets";
+import { MarketCharts } from "@/components/market/MarketCharts";
 import { createClient } from "@/lib/supabase/server";
 import { formatCoins, formatTimeLeft, getMarketStatusColor } from "@/lib/utils";
 import type { Market, MarketStatus } from "@/types";
@@ -116,6 +117,10 @@ export default async function MarketDetailPage({ params }: Params) {
         )}
 
         <OddsChart currentProb={market.yes_probability} />
+
+        <Suspense fallback={<div className="text-zinc-400">Loading charts...</div>}>
+          <MarketCharts marketId={market.id} />
+        </Suspense>
 
         <section className="grid grid-cols-1 gap-3 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 sm:grid-cols-3">
           <article>

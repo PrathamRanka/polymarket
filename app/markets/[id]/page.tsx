@@ -6,6 +6,7 @@ import BetPanel from "@/components/market/BetPanel";
 import CommentSection from "@/components/market/CommentSection";
 import MarketImage from "@/components/market/MarketImage";
 import OddsChart from "@/components/market/OddsChart";
+import RecentBets from "@/components/market/RecentBets";
 import { createClient } from "@/lib/supabase/server";
 import { formatCoins, formatTimeLeft, getMarketStatusColor } from "@/lib/utils";
 import type { Market, MarketStatus } from "@/types";
@@ -135,6 +136,8 @@ export default async function MarketDetailPage({ params }: Params) {
           <h2 className="text-lg font-semibold text-zinc-100">Description</h2>
           <p className="mt-2 text-sm text-zinc-300">{market.description}</p>
         </section>
+
+        <RecentBets marketId={market.id} />
 
         <Suspense fallback={<div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 text-zinc-400">Loading comments...</div>}>
           <CommentSection marketId={market.id} />
